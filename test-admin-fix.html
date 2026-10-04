@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Connexion Admin</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test de la Connexion Admin</h1>
+    
+    <div class="test info">
+        <h3>📋 Instructions de Test :</h3>
+        <ol>
+            <li>Ouvrez votre site en mode développement</li>
+            <li>Allez sur <code>/admin/login</code></li>
+            <li>Connectez-vous avec vos identifiants admin</li>
+            <li>Vérifiez que vous restez connecté</li>
+        </ol>
+    </div>
+
+    <div class="test">
+        <h3>🔍 Vérifications à faire :</h3>
+        <ul>
+            <li>✅ La page de login s'affiche correctement</li>
+            <li>✅ Vous pouvez saisir email et mot de passe</li>
+            <li>✅ Après connexion, vous accédez au dashboard admin</li>
+            <li>✅ Vous ne êtes pas déconnecté immédiatement</li>
+            <li>✅ Le timer de session s'affiche (24h)</li>
+        </ul>
+    </div>
+
+    <div class="test success">
+        <h3>✅ Corrections Appliquées :</h3>
+        <ul>
+            <li><strong>RequireAdmin.tsx</strong> : Vérification de session avant vérification d'expiration</li>
+            <li><strong>SessionTimer.tsx</strong> : Ne se déclenche pas si la session n'existe pas</li>
+            <li><strong>AdminLogin.tsx</strong> : Définit l'expiration de session immédiatement après connexion</li>
+        </ul>
+    </div>
+
+    <div class="test">
+        <h3>🛠️ Si le problème persiste :</h3>
+        <ol>
+            <li>Videz le cache du navigateur (Ctrl+F5)</li>
+            <li>Vérifiez la console pour d'éventuelles erreurs</li>
+            <li>Vérifiez que votre compte admin existe dans Supabase</li>
+            <li>Vérifiez la configuration Supabase dans .env</li>
+        </ol>
+    </div>
+
+    <script>
+        console.log('🔧 Test de connexion admin - Page de diagnostic');
+        console.log('💡 Ouvrez les outils de développement pour voir les logs');
+    </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+[build]
+  publish = "dist"
+  command = "npm run build:netlify"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# Fonctions FeeXPay - Webhook (appelé par FeeXPay après paiement)
+[[redirects]]
+  from = "/webhooks/feexpay"
+  to = "/.netlify/functions/feexpay-webhook"
+  status = 200
+  force = true
+
+# Fonctions FeeXPay - Créer un paiement
+[[redirects]]
+  from = "/payments/create"
+  to = "/.netlify/functions/feexpay-create-payment"
+  status = 200
+  force = true
+
+# Fonctions FeeXPay - Statut d'un paiement
+[[redirects]]
+  from = "/payments/status"
+  to = "/.netlify/functions/feexpay-payment-status"
+  status = 200
+  force = true
+
+# SPA redirects - configuration simple et fiable
+# Redirection pour les galeries d'images
+[[redirects]]
+  from = "/galeries/pdg-com-&-events/*"
+  to = "/galeries/pdg-com-%26-events/:splat"
+  status = 200
+
+# Fallback SPA - ALL other routes to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers for static assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

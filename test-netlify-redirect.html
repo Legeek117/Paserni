@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Redirection Netlify</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 4px; }
+        .success { border-left: 4px solid #28a745; background: #d4edda; }
+        .error { border-left: 4px solid #dc3545; background: #f8d7da; }
+        .warning { border-left: 4px solid #ffc107; background: #fff3cd; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de Redirection Netlify SPA</h1>
+    
+    <div class="test warning">
+        <strong>⚠️ Important :</strong> Ce test doit être exécuté sur Netlify, pas en local !
+    </div>
+    
+    <div class="test">
+        <h3>Test des routes problématiques</h3>
+        <p>Cliquez sur les boutons pour tester si les redirections SPA fonctionnent :</p>
+        
+        <button onclick="testRoute('/departements')">Test /departements</button>
+        <button onclick="testRoute('/projets')">Test /projets</button>
+        <button onclick="testRoute('/services')">Test /services</button>
+        <button onclick="testRoute('/contact')">Test /contact</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <div class="test">
+        <h3>Instructions</h3>
+        <ol>
+            <li>Déployez ce fichier sur Netlify</li>
+            <li>Ouvrez ce fichier sur votre site Netlify</li>
+            <li>Cliquez sur les boutons de test</li>
+            <li>Vérifiez que les routes redirigent vers index.html</li>
+        </ol>
+    </div>
+
+    <script>
+        function testRoute(route) {
+            const resultsDiv = document.getElementById('results');
+            const testDiv = document.createElement('div');
+            testDiv.className = 'test';
+            testDiv.innerHTML = `<strong>Test de ${route} :</strong> <span id="status-${route.replace(/\//g, '-')}">En cours...</span>`;
+            resultsDiv.appendChild(testDiv);
+            
+            fetch(route)
+                .then(response => {
+                    const statusElement = document.getElementById(`status-${route.replace(/\//g, '-')}`);
+                    if (response.ok) {
+                        // Vérifier si c'est du HTML (redirection réussie) ou du JSON (erreur)
+                        return response.text().then(text => {
+                            if (text.includes('<html') && text.includes('id="root"')) {
+                                statusElement.textContent = '✅ SUCCÈS - Redirection SPA fonctionne !';
+                                statusElement.parentElement.className = 'test success';
+                            } else {
+                                statusElement.textContent = '❌ ÉCHEC - Pas de redirection SPA';
+                                statusElement.parentElement.className = 'test error';
+                            }
+                        });
+                    } else {
+                        statusElement.textContent = `❌ Erreur ${response.status}`;
+                        statusElement.parentElement.className = 'test error';
+                    }
+                })
+                .catch(error => {
+                    const statusElement = document.getElementById(`status-${route.replace(/\//g, '-')}`);
+                    statusElement.textContent = `❌ Erreur réseau - ${error.message}`;
+                    statusElement.parentElement.className = 'test error';
+                });
+        }
+        
+        // Test automatique au chargement
+        window.addEventListener('load', () => {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="test warning">
+                    <strong>🔍 Diagnostic automatique :</strong><br>
+                    • URL actuelle : ${window.location.href}<br>
+                    • Hostname : ${window.location.hostname}<br>
+                    • Environnement : ${window.location.hostname.includes('netlify') ? 'Netlify' : 'Local/Autre'}
+                </div>
+            `;
+        });
+    </script>
+</body>
+</html>
+

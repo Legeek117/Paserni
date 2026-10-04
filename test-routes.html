@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test des Routes SPA - Espace Paserni</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .route-test {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .success { border-left-color: #28a745; }
+        .error { border-left-color: #dc3545; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test des Routes SPA - Espace Paserni</h1>
+    
+    <div class="test-section">
+        <h2>Routes à tester</h2>
+        <p>Cliquez sur les boutons ci-dessous pour tester si les routes SPA fonctionnent correctement :</p>
+        
+        <div class="route-test">
+            <strong>Page d'accueil :</strong>
+            <button onclick="testRoute('/home')">/home</button>
+            <button onclick="testRoute('/')">/</button>
+        </div>
+        
+        <div class="route-test">
+            <strong>Départements :</strong>
+            <button onclick="testRoute('/departements')">/departements</button>
+            <button onclick="testRoute('/departements/pdg-building-gallery')">/departements/pdg-building-gallery</button>
+        </div>
+        
+        <div class="route-test">
+            <strong>Services :</strong>
+            <button onclick="testRoute('/services')">/services</button>
+            <button onclick="testRoute('/restaurant')">/restaurant</button>
+        </div>
+        
+        <div class="route-test">
+            <strong>Autres pages :</strong>
+            <button onclick="testRoute('/galerie')">/galerie</button>
+            <button onclick="testRoute('/contact')">/contact</button>
+            <button onclick="testRoute('/mes-commandes')">/mes-commandes</button>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Résultats des tests</h2>
+        <div id="test-results">
+            <p>Cliquez sur les boutons ci-dessus pour commencer les tests...</p>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Instructions</h2>
+        <ol>
+            <li>Cliquez sur chaque bouton de route</li>
+            <li>Vérifiez que la page se charge correctement (pas d'erreur 404)</li>
+            <li>Vérifiez que le contenu de la page s'affiche (pas le code source HTML)</li>
+            <li>Testez aussi en rafraîchissant la page directement dans l'URL</li>
+        </ol>
+    </div>
+
+    <script>
+        function testRoute(route) {
+            const resultsDiv = document.getElementById('test-results');
+            const testDiv = document.createElement('div');
+            testDiv.className = 'route-test';
+            testDiv.innerHTML = `<strong>Test de ${route} :</strong> <span id="status-${route.replace(/\//g, '-')}">En cours...</span>`;
+            resultsDiv.appendChild(testDiv);
+            
+            // Test de la route
+            fetch(route)
+                .then(response => {
+                    const statusElement = document.getElementById(`status-${route.replace(/\//g, '-')}`);
+                    if (response.ok) {
+                        statusElement.textContent = '✅ Succès - Route accessible';
+                        statusElement.parentElement.className = 'route-test success';
+                    } else {
+                        statusElement.textContent = `❌ Erreur ${response.status} - ${response.statusText}`;
+                        statusElement.parentElement.className = 'route-test error';
+                    }
+                })
+                .catch(error => {
+                    const statusElement = document.getElementById(`status-${route.replace(/\//g, '-')}`);
+                    statusElement.textContent = `❌ Erreur réseau - ${error.message}`;
+                    statusElement.parentElement.className = 'route-test error';
+                });
+        }
+    </script>
+</body>
+</html>
+

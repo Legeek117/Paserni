@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic Configuration</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .section { margin: 20px 0; padding: 15px; border-radius: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .test-button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 10px 5px; }
+        .test-button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Diagnostic de Configuration</h1>
+        
+        <div class="section info">
+            <h2>📋 Variables d'Environnement</h2>
+            <div id="env-vars">Chargement...</div>
+        </div>
+
+        <div class="section info">
+            <h2>💳 Configuration FeeXPay</h2>
+            <div id="feexpay-config">Chargement...</div>
+        </div>
+
+        <div class="section info">
+            <h2>🗄️ Test de Connexion Supabase</h2>
+            <button class="test-button" onclick="testSupabase()">Tester Supabase</button>
+            <div id="supabase-result">Cliquez sur "Tester Supabase"</div>
+        </div>
+
+        <div class="section info">
+            <h2>🔧 Diagnostic FeeXPay</h2>
+            <div id="feexpay-diagnostic">Chargement...</div>
+        </div>
+    </div>
+
+    <script>
+        // Vérifier les variables d'environnement
+        function checkEnvVars() {
+            const envDiv = document.getElementById('env-vars');
+            const vars = [
+                'VITE_FEEXPAY_API_KEY',
+                'VITE_FEEXPAY_MERCHANT_ID', 
+                'VITE_FEEXPAY_MODE',
+                'VITE_SUPABASE_URL',
+                'VITE_SUPABASE_ANON_KEY'
+            ];
+            
+            let html = '<ul>';
+            vars.forEach(varName => {
+                const value = import.meta.env?.[varName];
+                const status = value ? '✅ Définie' : '❌ Manquante';
+                const color = value ? 'green' : 'red';
+                html += `<li style="color: ${color}"><strong>${varName}:</strong> ${status}</li>`;
+            });
+            html += '</ul>';
+            envDiv.innerHTML = html;
+        }
+
+        // Vérifier la configuration FeeXPay
+        function checkFeeXPayConfig() {
+            const configDiv = document.getElementById('feexpay-config');
+            const token = import.meta.env?.VITE_FEEXPAY_API_KEY;
+            const shopId = import.meta.env?.VITE_FEEXPAY_MERCHANT_ID;
+            const mode = import.meta.env?.VITE_FEEXPAY_MODE || 'LIVE';
+            
+            let html = '<ul>';
+            html += `<li><strong>Token:</strong> ${token ? '✅ Défini' : '❌ Undefined'}</li>`;
+            html += `<li><strong>Shop ID:</strong> ${shopId ? '✅ Défini' : '❌ Undefined'}</li>`;
+            html += `<li><strong>Mode:</strong> ${mode}</li>`;
+            html += `<li><strong>Currency:</strong> XOF</li>`;
+            html += '</ul>';
+            
+            configDiv.innerHTML = html;
+        }
+
+        // Diagnostic FeeXPay
+        function checkFeeXPayDiagnostic() {
+            const diagnosticDiv = document.getElementById('feexpay-diagnostic');
+            const shopId = import.meta.env?.VITE_FEEXPAY_MERCHANT_ID;
+            
+            if (!shopId) {
+                diagnosticDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ PROBLÈME IDENTIFIÉ</h3>
+                        <p><strong>shopId est undefined</strong></p>
+                        <p>L'URL devient: <code>api.feexpay.me/api/shop/undefined/get_shop</code></p>
+                        <h4>💡 SOLUTIONS:</h4>
+                        <ol>
+                            <li>Créer un fichier <code>.env.local</code> avec:
+                                <pre>VITE_FEEXPAY_MERCHANT_ID=votre_merchant_id</pre>
+                            </li>
+                            <li>Ou définir la variable dans votre hébergeur</li>
+                            <li>Ou utiliser les valeurs par défaut dans <code>src/lib/feexpay.ts</code></li>
+                        </ol>
+                    </div>
+                `;
+            } else {
+                diagnosticDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Shop ID correctement configuré</h3>
+                        <p>Shop ID: <code>${shopId}</code></p>
+                    </div>
+                `;
+            }
+        }
+
+        // Test Supabase
+        async function testSupabase() {
+            const resultDiv = document.getElementById('supabase-result');
+            resultDiv.innerHTML = '<div class="info">🔄 Test en cours...</div>';
+            
+            try {
+                // Import dynamique de Supabase
+                const { createClient } = await import('https://cdn.skypack.dev/@supabase/supabase-js');
+                
+                const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || 'https://erbnlextswbgtzztsxbf.supabase.co';
+                const supabaseKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyYm5sZXh0c3diZ3R6enRzeGJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNTI0NTEsImV4cCI6MjA3NDgyODQ1MX0.rM8FAq5xG3-nvsLf5PpiA4h3Jh7jDj7mtteW8RSPL-8';
+                
+                const supabase = createClient(supabaseUrl, supabaseKey);
+                
+                const { data, error } = await supabase
+                    .from('site_settings')
+                    .select('*')
+                    .limit(1);
+                
+                if (error) {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Erreur Supabase</h3>
+                            <p><strong>Message:</strong> ${error.message}</p>
+                            <p><strong>Code:</strong> ${error.code}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Connexion Supabase réussie</h3>
+                            <p><strong>Données récupérées:</strong> ${data?.length || 0} enregistrements</p>
+                            <p><strong>URL:</strong> ${supabaseUrl}</p>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Erreur de connexion Supabase</h3>
+                        <p><strong>Erreur:</strong> ${err.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            checkEnvVars();
+            checkFeeXPayConfig();
+            checkFeeXPayDiagnostic();
+        });
+    </script>
+</body>
+</html>
+
+
+

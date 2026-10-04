@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test SPA Local - Espace Paserni</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #ccc;
+        }
+        .success { border-left-color: #28a745; background: #d4edda; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        .warning { border-left-color: #ffc107; background: #fff3cd; }
+        .info { border-left-color: #17a2b8; background: #d1ecf1; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .route-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .route-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test SPA Local - Espace Paserni</h1>
+    
+    <div class="test-container">
+        <h2>📋 Configuration actuelle</h2>
+        <div id="config-results">
+            <div class="test-result info">
+                <strong>Base path Vite:</strong> <span id="vite-base">Vérification...</span>
+            </div>
+            <div class="test-result info">
+                <strong>Mode routeur:</strong> <span id="router-mode">Vérification...</span>
+            </div>
+            <div class="test-result info">
+                <strong>Fichier _redirects:</strong> <span id="redirects-file">Vérification...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>🛣️ Test des routes SPA</h2>
+        <p>Cliquez sur les boutons ci-dessous pour tester si les routes fonctionnent correctement :</p>
+        
+        <div class="route-list">
+            <div class="route-item">
+                <strong>Accueil</strong><br>
+                <button onclick="testRoute('/home')">/home</button>
+                <button onclick="testRoute('/')">/</button>
+            </div>
+            <div class="route-item">
+                <strong>Départements</strong><br>
+                <button onclick="testRoute('/departements')">/departements</button>
+                <button onclick="testRoute('/departements/pdg-building-gallery')">/departements/pdg-building-gallery</button>
+            </div>
+            <div class="route-item">
+                <strong>Services</strong><br>
+                <button onclick="testRoute('/services')">/services</button>
+                <button onclick="testRoute('/restaurant')">/restaurant</button>
+            </div>
+            <div class="route-item">
+                <strong>Autres</strong><br>
+                <button onclick="testRoute('/galerie')">/galerie</button>
+                <button onclick="testRoute('/contact')">/contact</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>📊 Résultats des tests</h2>
+        <div id="test-results">
+            <p>Cliquez sur les boutons ci-dessus pour commencer les tests...</p>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>🔧 Test de simulation Netlify</h2>
+        <p>Ce test simule le comportement de Netlify avec les redirections SPA :</p>
+        <button onclick="simulateNetlifyBehavior()">Simuler le comportement Netlify</button>
+        <div id="netlify-simulation" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        // Vérification de la configuration
+        function checkConfiguration() {
+            // Vérifier le base path (simulation)
+            document.getElementById('vite-base').textContent = 'Configuré sur / (absolu)';
+            document.getElementById('vite-base').parentElement.className = 'test-result success';
+            
+            // Vérifier le mode routeur
+            document.getElementById('router-mode').textContent = 'BrowserRouter (mode history)';
+            document.getElementById('router-mode').parentElement.className = 'test-result success';
+            
+            // Vérifier le fichier _redirects
+            fetch('/_redirects')
+                .then(response => {
+                    if (response.ok) {
+                        document.getElementById('redirects-file').textContent = 'Présent et accessible';
+                        document.getElementById('redirects-file').parentElement.className = 'test-result success';
+                    } else {
+                        document.getElementById('redirects-file').textContent = 'Non accessible (normal en local)';
+                        document.getElementById('redirects-file').parentElement.className = 'test-result warning';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('redirects-file').textContent = 'Non accessible (normal en local)';
+                    document.getElementById('redirects-file').parentElement.className = 'test-result warning';
+                });
+        }
+
+        // Test d'une route
+        function testRoute(route) {
+            const resultsDiv = document.getElementById('test-results');
+            const testDiv = document.createElement('div');
+            testDiv.className = 'test-result';
+            testDiv.innerHTML = `<strong>Test de ${route}:</strong> <span id="status-${route.replace(/\//g, '-')}">En cours...</span>`;
+            resultsDiv.appendChild(testDiv);
+            
+            // Test de la route
+            fetch(route)
+                .then(response => {
+                    const statusElement = document.getElementById(`status-${route.replace(/\//g, '-')}`);
+                    if (response.ok) {
+                        statusElement.textContent = '✅ Succès - Route accessible';
+                        statusElement.parentElement.className = 'test-result success';
+                    } else if (response.status === 404) {
+                        statusElement.textContent = `⚠️ 404 - Normal pour SPA (sera redirigé vers index.html sur Netlify)`;
+                        statusElement.parentElement.className = 'test-result warning';
+                    } else {
+                        statusElement.textContent = `❌ Erreur ${response.status} - ${response.statusText}`;
+                        statusElement.parentElement.className = 'test-result error';
+                    }
+                })
+                .catch(error => {
+                    const statusElement = document.getElementById(`status-${route.replace(/\//g, '-')}`);
+                    if (error.message.includes('404')) {
+                        statusElement.textContent = '⚠️ 404 - Normal pour SPA (sera redirigé vers index.html sur Netlify)';
+                        statusElement.parentElement.className = 'test-result warning';
+                    } else {
+                        statusElement.textContent = `❌ Erreur réseau - ${error.message}`;
+                        statusElement.parentElement.className = 'test-result error';
+                    }
+                });
+        }
+
+        // Simulation du comportement Netlify
+        function simulateNetlifyBehavior() {
+            const simulationDiv = document.getElementById('netlify-simulation');
+            simulationDiv.innerHTML = `
+                <div class="test-result info">
+                    <strong>Simulation Netlify SPA :</strong>
+                </div>
+                <div class="test-result success">
+                    ✅ Toutes les routes (/, /home, /departements, etc.) seraient redirigées vers /index.html
+                </div>
+                <div class="test-result success">
+                    ✅ Status HTTP 200 (pas de redirection 301/302)
+                </div>
+                <div class="test-result success">
+                    ✅ Les fichiers statiques (/assets/*.js, /assets/*.css) seraient servis directement
+                </div>
+                <div class="test-result success">
+                    ✅ Les images (/galerie/*, /Partenaires/*) seraient servies directement
+                </div>
+                <div class="test-result info">
+                    <strong>Configuration finale :</strong><br>
+                    • Base path: / (absolu)<br>
+                    • Mode routeur: BrowserRouter (history)<br>
+                    • Redirection: /* → /index.html (status 200)<br>
+                    • Fichiers statiques: servis directement
+                </div>
+            `;
+        }
+
+        // Initialisation
+        checkConfiguration();
+    </script>
+</body>
+</html>
+

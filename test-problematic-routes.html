@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Routes Problématiques - Espace Paserni</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #ccc;
+        }
+        .success { border-left-color: #28a745; background: #d4edda; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        .warning { border-left-color: #ffc107; background: #fff3cd; }
+        .info { border-left-color: #17a2b8; background: #d1ecf1; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover { background: #0056b3; }
+        .route-test {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+        .route-info {
+            flex: 1;
+        }
+        .route-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .status {
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .status.pending { background: #ffc107; color: #000; }
+        .status.success { background: #28a745; color: white; }
+        .status.error { background: #dc3545; color: white; }
+        .status.warning { background: #ffc107; color: #000; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Test des Routes Problématiques - Espace Paserni</h1>
+    
+    <div class="test-container">
+        <h2>🚨 Routes signalées comme problématiques</h2>
+        <p>Ces routes affichent du code source au lieu de la page sur Netlify :</p>
+        
+        <div class="route-test">
+            <div class="route-info">
+                <strong>/departements</strong> (Nos départements)
+                <br><small>Doit afficher la page des départements</small>
+            </div>
+            <div class="route-actions">
+                <span class="status pending" id="status-departements">En attente</span>
+                <button onclick="testRoute('/departements', 'departements')">Tester</button>
+                <button onclick="testDirectAccess('/departements')">Accès direct</button>
+            </div>
+        </div>
+        
+        <div class="route-test">
+            <div class="route-info">
+                <strong>/projets</strong> (Nos projets)
+                <br><small>Doit afficher la page des projets</small>
+            </div>
+            <div class="route-actions">
+                <span class="status pending" id="status-projets">En attente</span>
+                <button onclick="testRoute('/projets', 'projets')">Tester</button>
+                <button onclick="testDirectAccess('/projets')">Accès direct</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>🔧 Diagnostic de la configuration</h2>
+        <div id="config-diagnostic">
+            <div class="test-result info">
+                <strong>Vérification de la configuration...</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>📊 Résultats des tests</h2>
+        <div id="test-results">
+            <p>Cliquez sur les boutons de test ci-dessus pour commencer...</p>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>💡 Solutions recommandées</h2>
+        <div class="test-result info">
+            <strong>Si les tests montrent des erreurs 404 :</strong><br>
+            1. Vérifier que le fichier _redirects est présent dans dist/<br>
+            2. Vérifier que la règle /* /index.html 200 est présente<br>
+            3. Redéployer sur Netlify<br>
+            4. Vider le cache du navigateur
+        </div>
+        <div class="test-result warning">
+            <strong>Si les tests montrent du code source :</strong><br>
+            1. Le problème vient de la configuration de redirection<br>
+            2. Vérifier que netlify.toml est correct<br>
+            3. Vérifier que _redirects est dans le bon format<br>
+            4. Forcer un redéploiement complet
+        </div>
+    </div>
+
+    <script>
+        // Diagnostic de la configuration
+        function checkConfiguration() {
+            const diagnosticDiv = document.getElementById('config-diagnostic');
+            
+            // Vérifier si on est en local ou sur Netlify
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const isNetlify = window.location.hostname.includes('netlify');
+            
+            let diagnostic = `
+                <div class="test-result ${isLocal ? 'warning' : 'info'}">
+                    <strong>Environnement :</strong> ${isLocal ? 'Local (normal de voir des 404)' : isNetlify ? 'Netlify (doit fonctionner)' : 'Autre'}
+                </div>
+            `;
+            
+            // Vérifier la configuration actuelle
+            diagnostic += `
+                <div class="test-result info">
+                    <strong>Configuration attendue :</strong><br>
+                    • Base path: / (absolu)<br>
+                    • Mode routeur: BrowserRouter (history)<br>
+                    • Redirection: /* → /index.html (status 200)<br>
+                    • Fichier _redirects dans dist/
+                </div>
+            `;
+            
+            diagnosticDiv.innerHTML = diagnostic;
+        }
+
+        // Test d'une route
+        function testRoute(route, routeId) {
+            const statusElement = document.getElementById(`status-${routeId}`);
+            statusElement.textContent = 'Test en cours...';
+            statusElement.className = 'status pending';
+            
+            fetch(route)
+                .then(response => {
+                    if (response.ok) {
+                        statusElement.textContent = '✅ Succès';
+                        statusElement.className = 'status success';
+                        addTestResult(route, 'SUCCESS', `Route accessible (${response.status})`);
+                    } else if (response.status === 404) {
+                        statusElement.textContent = '⚠️ 404';
+                        statusElement.className = 'status warning';
+                        addTestResult(route, 'WARNING', `404 - Normal en local, sera redirigé sur Netlify`);
+                    } else {
+                        statusElement.textContent = '❌ Erreur';
+                        statusElement.className = 'status error';
+                        addTestResult(route, 'ERROR', `Erreur ${response.status} - ${response.statusText}`);
+                    }
+                })
+                .catch(error => {
+                    statusElement.textContent = '❌ Erreur';
+                    statusElement.className = 'status error';
+                    addTestResult(route, 'ERROR', `Erreur réseau - ${error.message}`);
+                });
+        }
+
+        // Test d'accès direct
+        function testDirectAccess(route) {
+            addTestResult(route, 'INFO', `Test d'accès direct : ${window.location.origin}${route}`);
+            // Ouvrir dans un nouvel onglet
+            window.open(route, '_blank');
+        }
+
+        // Ajouter un résultat de test
+        function addTestResult(route, type, message) {
+            const resultsDiv = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type.toLowerCase()}`;
+            resultDiv.innerHTML = `<strong>${route}:</strong> ${message}`;
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        // Initialisation
+        checkConfiguration();
+    </script>
+</body>
+</html>
+
+
