@@ -3,6 +3,9 @@ import { supabase, Product } from '../lib/supabase'
 import { useCountry } from '../contexts/CountryContext'
 import { Plus, Pencil, Trash2, Upload as UploadIcon, X } from 'lucide-react'
 import { restaurantSeed, gallerySeed, SeedProduct } from '../data/siteSeed'
+import { imageUploadService } from '../services/imageUploadService'
+import ImageWithFallback from '../components/ImageWithFallback'
+import { buildCountryOrFilter } from '../lib/country'
 
 type EditableProduct = Omit<Product, 'created_at' | 'id'> & { id?: string }
 
@@ -15,7 +18,8 @@ const emptyProduct: EditableProduct = {
   category: 'restaurant',
   subcategory: '',
   quantity: 0,
-  is_available: true
+  is_available: true,
+  country: null
 }
 
 const ProductsPage: React.FC = () => {
@@ -28,6 +32,7 @@ const ProductsPage: React.FC = () => {
   const [category, setCategory] = React.useState<'all' | 'restaurant' | 'gallery'>('all')
   const [modalOpen, setModalOpen] = React.useState(false)
   const [draft, setDraft] = React.useState<EditableProduct>(emptyProduct)
+  const [selectedCountries, setSelectedCountries] = React.useState<string[]>([])
   
   const subcategoryOptions: Record<'restaurant' | 'gallery', string[]> = {
     restaurant: ['plats', 'accompagnements', 'jus', 'bieres', 'liqueur'],
@@ -45,7 +50,9 @@ const ProductsPage: React.FC = () => {
         const { data, error } = await supabase
           .from('products')
           .select('*')
-          .eq('country', selectedCountry)
+          // Produits du pays courant et universels (null ou vide).
+          // Tolère les deux formats stockés : 'BJ' comme 'benin'.
+          .or(buildCountryOrFilter(selectedCountry))
           .order('created_at', { ascending: false })
         if (error) throw error
         setItems(data || [])
@@ -93,9 +100,20 @@ const ProductsPage: React.FC = () => {
     return okCategory && okQuery
   })
 
-  const openCreate = () => { setDraft(emptyProduct); setModalOpen(true) }
+  const openCreate = () => { 
+    // Pré-sélectionner le pays courant de l'admin pour éviter les produits "tous pays" par défaut
+    const presetCountry = selectedCountry as string | null
+    setDraft({
+      ...emptyProduct,
+      country: presetCountry,
+    });
+    setSelectedCountries(presetCountry ? [presetCountry] : []);
+    setModalOpen(true);
+  }
   
   const openEdit = (p: Product) => {
+    const productCountry = (p as any).country || null;
+    const countries = productCountry ? [productCountry] : [];
     setDraft({
       id: p.id,
       name: p.name,
@@ -105,8 +123,11 @@ const ProductsPage: React.FC = () => {
       category: p.category as any,
       subcategory: p.subcategory || '',
       quantity: typeof p.quantity === 'number' ? p.quantity : 0,
-      is_available: !!p.is_available
-    }); setModalOpen(true)
+      is_available: !!p.is_available,
+      country: productCountry
+    });
+    setSelectedCountries(countries);
+    setModalOpen(true);
   }
 
   const save = async (e: React.FormEvent) => {
@@ -114,28 +135,27 @@ const ProductsPage: React.FC = () => {
     setLoading(true)
     setError(null)
     try {
+      // Garantie: calculer le pays final depuis les cases cochées
+      const finalCountry: string | null = selectedCountries.length === 1 ? selectedCountries[0] : null
+      const payloadBase = {
+        name: draft.name,
+        description: draft.description,
+        price: draft.price,
+        image: draft.image,
+        category: draft.category,
+        subcategory: draft.subcategory,
+        is_available: draft.is_available,
+      }
       if (draft.id) {
         // Primary attempt: full payload including optional columns
         let { error } = await supabase.from('products').update({
-          name: draft.name,
-          description: draft.description,
-          price: draft.price,
-          image: draft.image,
-          category: draft.category,
-          subcategory: draft.subcategory,
-          is_available: draft.is_available,
-          ...(hasCountryColumn ? { country: selectedCountry } : {})
+          ...payloadBase,
+          ...(hasCountryColumn ? { country: finalCountry } : {})
         }).eq('id', draft.id)
         if (error) {
           // Fallback for schemas without quantity/country columns
           const minimal = {
-            name: draft.name,
-            description: draft.description,
-            price: draft.price,
-            image: draft.image,
-            category: draft.category,
-            subcategory: draft.subcategory,
-            is_available: draft.is_available
+            ...payloadBase
           }
           const retry = await supabase.from('products').update(minimal as any).eq('id', draft.id)
           if (retry.error) throw retry.error
@@ -143,25 +163,13 @@ const ProductsPage: React.FC = () => {
       } else {
         // Primary attempt: full payload
         let { error } = await supabase.from('products').insert([{
-          name: draft.name,
-          description: draft.description,
-          price: draft.price,
-          image: draft.image,
-          category: draft.category,
-          subcategory: draft.subcategory,
-          ...(hasCountryColumn ? { country: selectedCountry } : {}),
-          is_available: draft.is_available
+          ...payloadBase,
+          ...(hasCountryColumn ? { country: finalCountry } : {}),
         }])
         if (error) {
           // Fallback for schemas without quantity/country columns
           const minimal = [{
-            name: draft.name,
-            description: draft.description,
-            price: draft.price,
-            image: draft.image,
-            category: draft.category,
-            subcategory: draft.subcategory,
-            is_available: draft.is_available
+            ...payloadBase
           }]
           const retry = await supabase.from('products').insert(minimal as any)
           if (retry.error) throw retry.error
@@ -177,7 +185,14 @@ const ProductsPage: React.FC = () => {
         }))
       }, 100)
     } catch (err: any) {
-      setError((err?.details || err?.message) ?? 'Erreur enregistrement')
+      console.error('Erreur sauvegarde produit:', err)
+      let msg = (err?.details || err?.message) ?? 'Erreur enregistrement'
+      
+      if (err?.code === '42501' || (typeof msg === 'string' && msg.includes('row-level security'))) {
+        msg = "Erreur de permission Supabase (RLS). Veuillez exécuter le script 'fix_supabase_permissions.sql' dans votre console Supabase."
+      }
+      
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -187,9 +202,7 @@ const ProductsPage: React.FC = () => {
     if (!confirm('Supprimer ce produit ?')) return
     setLoading(true)
     setError(null)
-    const { error } = hasCountryColumn
-      ? await supabase.from('products').delete().eq('id', id).eq('country', selectedCountry)
-      : await supabase.from('products').delete().eq('id', id)
+    const { error } = await supabase.from('products').delete().eq('id', id)
     if (error) setError(error.message)
     await load()
     
@@ -342,7 +355,19 @@ const ProductsPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filtered.map((p) => (
                     <div key={p.id} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group">
-                      <div className="h-48 bg-gray-100 bg-no-repeat bg-center bg-contain relative" style={{ backgroundImage: `url(${p.image || ''})` }}>
+                      <div className="h-48 bg-gray-100 relative">
+                        {p.image ? (
+                          <ImageWithFallback 
+                            src={p.image} 
+                            alt={p.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <span className="text-sm">Pas d'image</span>
+                          </div>
+                        )}
+                        
                         <div className="absolute top-3 left-3">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             p.is_available 
@@ -352,7 +377,8 @@ const ProductsPage: React.FC = () => {
                             {p.is_available ? 'Disponible' : 'Indisponible'}
                           </span>
                         </div>
-                        <div className="absolute top-3 right-3">
+                        
+                        <div className="absolute bottom-3 right-3">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             {p.category === 'restaurant' && '🍽️ Restaurant'}
                             {p.category === 'gallery' && '🎨 Galerie'}
@@ -427,10 +453,70 @@ const ProductsPage: React.FC = () => {
               </button>
             </div>
             <form onSubmit={save} className="space-y-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="text-sm text-gray-600 flex items-center gap-2">
-                  <span className="font-semibold">Pays:</span>
-                  <span className="uppercase bg-white px-2 py-1 rounded border">{selectedCountry}</span>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Pays de destination</label>
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-4 border-2 border-orange-200">
+                  <p className="text-sm text-gray-700 mb-3 font-semibold">
+                    📍 Choisissez où ce produit sera visible :
+                  </p>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedCountries.includes('benin')}
+                        onChange={(e) => {
+                          let newCountries = [...selectedCountries];
+                          if (e.target.checked) {
+                            if (!newCountries.includes('benin')) {
+                              newCountries.push('benin');
+                            }
+                          } else {
+                            newCountries = newCountries.filter(c => c !== 'benin');
+                          }
+                          setSelectedCountries(newCountries);
+                          // Si les deux pays sont sélectionnés ou aucun, mettre null (visible partout)
+                          if (newCountries.length === 2 || newCountries.length === 0) {
+                            setDraft({ ...draft, country: null });
+                          } else {
+                            setDraft({ ...draft, country: newCountries[0] });
+                          }
+                        }}
+                        className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500"
+                      />
+                      <span className="text-sm text-gray-700">🇧🇯 Bénin</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedCountries.includes('cote-ivoire')}
+                        onChange={(e) => {
+                          let newCountries = [...selectedCountries];
+                          if (e.target.checked) {
+                            if (!newCountries.includes('cote-ivoire')) {
+                              newCountries.push('cote-ivoire');
+                            }
+                          } else {
+                            newCountries = newCountries.filter(c => c !== 'cote-ivoire');
+                          }
+                          setSelectedCountries(newCountries);
+                          // Si les deux pays sont sélectionnés ou aucun, mettre null (visible partout)
+                          if (newCountries.length === 2 || newCountries.length === 0) {
+                            setDraft({ ...draft, country: null });
+                          } else {
+                            setDraft({ ...draft, country: newCountries[0] });
+                          }
+                        }}
+                        className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500"
+                      />
+                      <span className="text-sm text-gray-700">🇨🇮 Côte d'Ivoire</span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3">
+                    ℹ️ Sélectionnez les pays où le produit sera visible (ou laissez vide pour tous les pays)
+                  </p>
+                  <p className="text-xs text-orange-600 mt-1 font-semibold">
+                    Pays sélectionné : {selectedCountries.length === 0 ? '🌍 Tous les pays' : selectedCountries.length === 2 ? '🌍 Tous les pays' : selectedCountries[0] === 'benin' ? '🇧🇯 Bénin uniquement' : '🇨🇮 Côte d\'Ivoire uniquement'}
+                  </p>
                 </div>
               </div>
               
@@ -515,18 +601,34 @@ const ProductsPage: React.FC = () => {
                 </select>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Image (URL)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Image du produit</label>
                   <input 
                     value={draft.image} 
                     onChange={(e)=>setDraft({...draft, image:e.target.value})} 
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300" 
-                    placeholder="https://exemple.com/image.jpg" 
+                    placeholder="https://exemple.com/image.jpg (RECOMMANDÉ)" 
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Utilisez une URL d'image (Google Photos, Imgur, etc.) pour éviter les problèmes de configuration
+                  </p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Téléverser une image</label>
+
+                {draft.image && (
+                  <div className="border rounded-lg p-2">
+                    <p className="text-xs text-gray-500 mb-1">Aperçu :</p>
+                    <img 
+                      src={draft.image} 
+                      alt="Aperçu" 
+                      className="w-full max-h-40 object-cover rounded"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-gray-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ou téléverser une image (requiert configuration Supabase)</label>
                   <UploadControl onUploaded={(url)=>setDraft({...draft, image:url})} />
                 </div>
               </div>
@@ -577,16 +679,14 @@ const UploadControl: React.FC<{ onUploaded: (url: string) => void }> = ({ onUplo
     if (!file) return
     setBusy(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
-      const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { error } = await supabase.storage.from('images').upload(path, file, {
-        cacheControl: '3600', upsert: false, contentType: file.type || 'image/jpeg'
-      })
-      if (error) throw error
-      const { data } = supabase.storage.from('images').getPublicUrl(path)
-      if (data?.publicUrl) onUploaded(data.publicUrl)
+      const result = await imageUploadService.uploadImage(file, 'products')
+      if (result.success && result.url) {
+        onUploaded(result.url)
+      } else {
+        alert(`Échec du téléversement: ${result.error}`)
+      }
     } catch (err) {
-      alert("Échec du téléversement. Vérifiez le bucket 'images' et les permissions.")
+      alert(`Échec du téléversement: ${err instanceof Error ? err.message : 'Erreur inconnue'}`)
     } finally {
       setBusy(false)
       if (inputRef.current) inputRef.current.value = ''

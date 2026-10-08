@@ -1,23 +1,36 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase, Product } from '../lib/supabase'
-import Tilt from 'react-parallax-tilt'
 import { OrderButton } from '../components/OrderButton'
 import { Clock, MapPin, ShoppingCart, ChefHat, Beer, Utensils, Coffee, Wine } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useCountry } from '../contexts/CountryContext'
+import { buildCountryOrFilter, matchesCountry } from '../lib/country'
 import { Cart } from '../components/Cart'
 import { useCart } from '../contexts/CartContext'
 
 // Les catégories seront maintenant générées dynamiquement depuis la base de données
 
-const openingHours = [
-  { day: 'Mardi - Samedi', hours: '10h - 22h' },
-  { day: 'Dimanche', hours: '12h - 22h' }
-]
-
 const Restaurant: React.FC = () => {
   const { countryData } = useCountry()
   const { state } = useCart()
+
+  // Horaires spécifiques par pays
+  const getOpeningHours = () => {
+    if (countryData.id === 'cote-ivoire') {
+      return [
+        { day: 'Mardi - Samedi', hours: '10h - 22h' },
+        { day: 'Dimanche', hours: '12h - 22h' }
+      ];
+    } else {
+      return [
+        { day: 'Lundi - Jeudi', hours: '09h - 22h' },
+        { day: 'Vendredi - Samedi', hours: '09h - 00h' },
+        { day: 'Dimanche', hours: '09h - 00h' }
+      ];
+    }
+  };
+
+  const openingHours = getOpeningHours();
 
   const [dbItems, setDbItems] = useState<Record<string, Product[]>>({})
   const [availableCategories, setAvailableCategories] = useState<Array<{id: string, name: string, icon: any}>>([])
@@ -30,19 +43,31 @@ const Restaurant: React.FC = () => {
     setLoading(true)
     setError(null)
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('*')
         .eq('category', 'restaurant')
         .eq('is_available', true)
         .order('created_at', { ascending: false })
 
+      // Inclure les produits du pays courant ou universels (country = null ou vide).
+      // Le filtre couvre les deux formats stockés en base (code ISO 'BJ' ou libellé 'benin').
+      query = query.or(buildCountryOrFilter(countryData.id))
+
+      const { data, error } = await query
+
       if (error) throw error
+
+      // Double filtre côté client : garantit l'isolation par pays même si un
+      // enregistrement utilise une écriture non prévue.
+      const filtered = (data as Product[] || []).filter((p: any) =>
+        matchesCountry(p?.country, countryData.id)
+      ) as Product[]
 
       const grouped: Record<string, Product[]> = {}
       const categoriesSet = new Set<string>()
       
-      for (const p of (data || []) as Product[]) {
+      for (const p of filtered) {
         const sub = (p.subcategory || 'plats').toLowerCase()
         if (!grouped[sub]) grouped[sub] = []
         grouped[sub].push(p)
@@ -91,9 +116,17 @@ const Restaurant: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [countryData.id])
 
   useEffect(() => { loadRestaurantData() }, [loadRestaurantData])
+
+  // Réinitialiser l'état visuel lors du changement de pays pour éviter les mélanges transitoires
+  useEffect(() => {
+    setDbItems({})
+    setAvailableCategories([])
+    setActiveCategory('')
+    loadRestaurantData()
+  }, [countryData.id, loadRestaurantData])
 
   useEffect(() => {
     const interval = setInterval(() => { loadRestaurantData() }, 30000)
@@ -255,7 +288,7 @@ const Restaurant: React.FC = () => {
         <motion.div className="mt-8 bg-white rounded-xl shadow-lg p-8" initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.45 }}>
           <h2 className="text-2xl font-serif font-bold text-gray-900 mb-4 flex items-center"><MapPin className="text-orange-600 mr-2" /> Localisation</h2>
           <p className="text-gray-600 mb-4">{countryData.address}</p>
-          <a href="https://maps.app.goo.gl/HSmG2YqQrajoHjsE7?g_st=awb" target="_blank" rel="noopener noreferrer" className="btn-primary inline-block">Ouvrir dans Google Maps</a>
+          <a href={countryData.id === 'cote-ivoire' ? "https://maps.app.goo.gl/vtwT6H86NiuB6ehg6?g_st=aw" : "https://maps.app.goo.gl/HSmG2YqQrajoHjsE7?g_st=awb"} target="_blank" rel="noopener noreferrer" className="btn-primary inline-block">Ouvrir dans Google Maps</a>
         </motion.div>
       </div>
     </div>

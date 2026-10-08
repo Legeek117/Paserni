@@ -1,18 +1,21 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Configuration Supabase SÉCURISÉE (Variables d'environnement uniquement)
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Configuration Supabase (variables d'environnement uniquement)
+//
+// Aucune clé en dur ici : ce module est inclus dans le bundle navigateur.
+// Seule la clé ANON doit être utilisée côté client — la clé service_role
+// contourne le RLS et ne doit jamais y figurer.
+const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env?.VITE_SUPABASE_ANON_KEY
 
-// Variables d'environnement chargées
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    '[Supabase] Variables manquantes: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY. ' +
+      'Définis-les dans .env avant de builder.'
+  )
+}
 
-// Fallback temporaire pour le développement si les variables ne sont pas chargées
-const finalSupabaseUrl = supabaseUrl || 'https://erbnlextswbgtzztsxbf.supabase.co'
-const finalSupabaseKey = supabaseKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyYm5sZXh0c3diZ3R6enRzeGJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNTI0NTEsImV4cCI6MjA3NDgyODQ1MX0.rM8FAq5xG3-nvsLf5PpiA4h3Jh7jDj7mtteW8RSPL-8'
-
-// Utilisation des fallbacks si les variables d'environnement ne sont pas chargées
-
-export const supabase = createClient(finalSupabaseUrl, finalSupabaseKey)
+export const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Fonction pour vérifier la connexion Supabase
 export const checkSupabaseConnection = async (): Promise<boolean> => {
@@ -78,5 +81,6 @@ export interface Product {
   subcategory?: string
   quantity?: number
   is_available: boolean
+  country?: string | null
   created_at: string
 }

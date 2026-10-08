@@ -114,8 +114,15 @@ const FeexPayCheckout: React.FC<FeexPayCheckoutProps> = ({
           // Référence personnalisée unique
           customId={customId}
 
-          // URL serveur pour notification (webhook Render)
-          callback_server={FEEXPAY_CONFIG.callbackServer}
+          // Redirection navigateur après paiement réussi.
+          // Le SDK fait window.location.href = `${callback_url}?ref=…`.
+          // Ce n'est PAS le webhook serveur : le SDK n'envoie à FeeXPay que
+          // merchant_domain (l'origine navigateur). L'URL du webhook serveur
+          // se configure dans le dashboard FeeXPay (FEEXPAY_CONFIG.callbackServer).
+          callback_url={FEEXPAY_CONFIG.callbackUrl}
+
+          // Redirection navigateur en cas d'échec (mêmes mechanics)
+          error_callback_url={FEEXPAY_CONFIG.errorCallbackUrl}
           
           // Informations client
           callback_info={{
@@ -141,13 +148,6 @@ const FeexPayCheckout: React.FC<FeexPayCheckoutProps> = ({
           
           // Devise depuis la configuration
           currency={FEEXPAY_CONFIG.currency}
-          
-          // Pré-remplir les champs
-          defaultValueField={{
-            email: customerInfo.email,
-            name: customerInfo.name,
-            phone: customerInfo.phone
-          }}
           
           // Cacher certains champs (ils sont déjà remplis)
           fields_to_hide={["email", "name", "phone"]}

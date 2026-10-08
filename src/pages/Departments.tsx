@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useDepartmentImages } from '../hooks/useDepartmentImages';
 import { useCountry } from '../contexts/CountryContext';
+import { matchesCountry } from '../lib/country';
 
 const sections = [
   { id: 'building', title: 'PDG BUILDING', image: '/images-galeries/PDG%20building.jpg.jpeg', description: "Envie de construire la maison de votre rêve ou de transformer vos espaces (maison, bureau, boutique...) en un bout de paradis, notre département PDG BUILDING met à votre disposition un panel de compétences en architecture d'intérieur et en ingénierie du bâtiment. Nous vous accompagnons depuis votre idée jusqu'à sa mise en œuvre avec la motivation de rendre votre projet exceptionnel et fonctionnel. Nos équipes d'ingénieurs, d'architectes, de designers et d'artisans n'attendent que vous pour relever le défi de sublimer vos espaces et vos projets de construction." },
@@ -31,9 +32,10 @@ const Departments: React.FC = () => {
   const { countryData } = useCountry()
   const { departments: dbDepartments, loading: imagesLoading } = useDepartmentImages()
   
-  // Filtrer les départements par pays et mapper les données
-  const countryDepartments = dbDepartments.filter(dept => 
-    dept.country.toLowerCase() === countryData.id.toLowerCase()
+  // Filtrer les départements par pays et mapper les données.
+  // Les deux formats sont tolérés : 'BJ' comme 'benin'.
+  const countryDepartments = dbDepartments.filter(dept =>
+    matchesCountry(dept.country, countryData.id)
   ).map(dept => ({
     id: dept.department.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
     title: dept.title || dept.department,
